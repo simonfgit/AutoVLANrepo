@@ -7,3 +7,12 @@ C:\Users\simon\source\repos\AutoVLAN\Extensions\obj\Debug\netstandard2.0\Extensi
 C:\Users\simon\source\repos\AutoVLAN\Extensions\obj\Debug\netstandard2.0\Extensions.dll
 C:\Users\simon\source\repos\AutoVLAN\Extensions\obj\Debug\netstandard2.0\Extensions.pdb
 C:\Users\simon\source\repos\AutoVLAN\Extensions\obj\Debug\netstandard2.0\Extensions.csprojAssemblyReference.cache
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\bin\Debug\netstandard2.0\Extensions.deps.json
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\bin\Debug\netstandard2.0\Extensions.dll
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\bin\Debug\netstandard2.0\Extensions.pdb
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\obj\Debug\netstandard2.0\Extensions.csprojAssemblyReference.cache
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\obj\Debug\netstandard2.0\Extensions.csproj.CoreCompileInputs.cache
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\obj\Debug\netstandard2.0\Extensions.AssemblyInfoInputs.cache
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\obj\Debug\netstandard2.0\Extensions.AssemblyInfo.cs
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\obj\Debug\netstandard2.0\Extensions.dll
+C:\Users\simon\source\repos\AutoVLANrepo\Extensions\obj\Debug\netstandard2.0\Extensions.pdb

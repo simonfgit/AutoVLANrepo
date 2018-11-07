@@ -4185,11 +4185,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\simon\\source\\repos\\AutoVLAN\\AutoVLAN\\AutoVLAN.csproj",
+      "projectUniqueName": "C:\\Users\\simon\\source\\repos\\AutoVLANrepo\\AutoVLAN\\AutoVLAN.csproj",
       "projectName": "AutoVLAN",
-      "projectPath": "C:\\Users\\simon\\source\\repos\\AutoVLAN\\AutoVLAN\\AutoVLAN.csproj",
+      "projectPath": "C:\\Users\\simon\\source\\repos\\AutoVLANrepo\\AutoVLAN\\AutoVLAN.csproj",
       "packagesPath": "C:\\Users\\simon\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\simon\\source\\repos\\AutoVLAN\\AutoVLAN\\obj\\",
+      "outputPath": "C:\\Users\\simon\\source\\repos\\AutoVLANrepo\\AutoVLAN\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
@@ -4210,8 +4210,8 @@
       "frameworks": {
         "netcoreapp2.1": {
           "projectReferences": {
-            "C:\\Users\\simon\\source\\repos\\AutoVLAN\\Config.Vlan\\Config.Vlan.csproj": {
-              "projectPath": "C:\\Users\\simon\\source\\repos\\AutoVLAN\\Config.Vlan\\Config.Vlan.csproj"
+            "C:\\Users\\simon\\source\\repos\\AutoVLANrepo\\Config.Vlan\\Config.Vlan.csproj": {
+              "projectPath": "C:\\Users\\simon\\source\\repos\\AutoVLANrepo\\Config.Vlan\\Config.Vlan.csproj"
             }
           }
         }

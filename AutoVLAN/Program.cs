@@ -32,8 +32,9 @@ namespace AutoVLAN
             cfg.GetSection("ConfigurationClass").Bind(mycfg);
 
             Log.Logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(cfg)
+                .WriteTo.Console()
                 .CreateLogger();
+
             return mycfg;
         }
 
