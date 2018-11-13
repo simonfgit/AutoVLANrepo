@@ -77,6 +77,9 @@ namespace AutoVLAN
             //foreach por cada elemento del diccionario que devolvio GetListRoutersToConfig y cambiar los parametros de la conexion en cada iteración?
             //en cada iteración creo una nueva conexion y la cierro al final
 
+            //generar un método que devuelva un listado de RB260 con las VLAN que le corresponden. La aplicación quedaria 
+            //esperando confirmación para continuar (obviamente se confirmaría luego de que todos os RB260 esten listos)
+
             connectionCrf.Dispose();
         }
     }

@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Config.Vlan.Unit.Tests", "C
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Config.Vlan", "Config.Vlan\Config.Vlan.csproj", "{BADD795E-43E0-460B-8F6A-A7C51F0AFB0D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Extensions", "Extensions\Extensions.csproj", "{B61AE830-3C0A-4313-9B1B-F664E196B872}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Extensions", "Extensions\Extensions.csproj", "{B61AE830-3C0A-4313-9B1B-F664E196B872}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
