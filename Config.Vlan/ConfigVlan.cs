@@ -38,27 +38,7 @@ namespace Config.Vlan
 
             return result;
         }
-
-        //private static bool ValidIPAddress(string address)
-        //{
-        //    var result = false;
-
-        //    if (address != null)
-        //        if (address.StartsWith("10.0.5.") ||
-        //            address.StartsWith("10.0.6.") ||
-        //            address.StartsWith("10.0.7.") ||
-        //            address.StartsWith("10.0.8.") ||
-        //            address.StartsWith("10.0.9.") ||
-        //            address.StartsWith("10.0.10.") ||
-        //            address.StartsWith("10.0.11.") ||
-        //            address.StartsWith("10.33.0."))
-        //        {
-        //            result = true;
-        //        }
-
-        //    return result;
-        //}
-
+        
         #endregion
 
         public ConfigVlan(ILogger logger, ITikConnection connection)
@@ -86,7 +66,7 @@ namespace Config.Vlan
 
         public string GetUpLinkInterface(IEntityReader<IpNeighbor> neighReader, IEntityReader<Interfaces> ifaceReader)
         {
-            var proxyNeigh = neighReader.GetAll().Where(n => n.Identity == "Saavedra_Proxy_ARP");
+            var proxyNeigh = neighReader.GetAll().Where(n => n.Identity == "Saavedra_Proxy_ARP" || n.Identity == "Saavedra_CRF2");
 
             var neighIfaces = proxyNeigh.Select(n => n.Interface).ToArray();
 
@@ -127,11 +107,31 @@ namespace Config.Vlan
             vlanReadWriter.Save(vlanCrf2);
             return "CRF2 VLAN was created";
             
-
             //arrojar excepciones (equipo apagado por ejemplo) o bien hacer un try que devuelva un boolean
-
-            //si el puerto es access llamare al metodo que hace el laburo y una vez terminado
-            //tengo que verificar si hay un RB260 antes del router
         }
+
+        public string CheckFor260(string uplink, IEntityReader<IpNeighbor> neighReader)
+        {
+            var result = "No RB260";
+
+            var uplinkNeighs = neighReader.GetAll().Where(n => n.Interface == uplink);
+
+            foreach (var neigh in uplinkNeighs)
+            {
+                if (neigh.Board != "RB260GS") continue;
+
+                result = neigh.Address4;
+                break;
+            }
+
+            return result;
+        }
+
+        //public string ZygmaSetUp()
+
+        //tengo que editar el Shell para que haga exactamente lo que yo quiero. 
+        //el ejemplo lo estoy probando en el proyecto aparte
+
+        //hacer un diccionario con puerto del zygma y vlan correspondiente
     }
 }

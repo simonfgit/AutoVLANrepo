@@ -68,24 +68,58 @@ namespace Config.Vlan.Unit.Tests
             return dic;
         }
 
-        private static List<IpNeighbor> GetFakeRouterNeighList()
+        private static List<IpNeighbor> GetFakeRouterNeighList1()
         {
             return new List<IpNeighbor>
             {
                 new IpNeighbor
                 {
                     Interface = "vpls_Saavedra",
-                    Identity = "Saavedra_Proxy_ARP"
+                    Identity = "Saavedra_Proxy_ARP",
+                    Board = "CCR1072-1G-8S+",
+                    Address4 = "10.0.5.137"
                 },
                 new IpNeighbor
                 {
                     Interface = "ether1",
-                    Identity = "Saavedra_Proxy_ARP"
+                    Identity = "Saavedra_Proxy_ARP",
+                    Board = "CCR1072-1G-8S+",
+                    Address4 = "10.0.5.137"
                 },
                 new IpNeighbor
                 {
                     Interface = "ether3",
-                    Identity = "Moreno 56"
+                    Identity = "Moreno 56",
+                    Board = "RB260GS",
+                    Address4 = "10.150.14.80"
+                },
+                new IpNeighbor
+                {
+                    Interface = "ether1",
+                    Identity = "Saavedra_CRF2",
+                    Board = "CCR1072-1G-8S+",
+                    Address4 = "10.0.6.245"
+                }
+            };
+        }
+
+        private static List<IpNeighbor> GetFakeRouterNeighList2()
+        {
+            return new List<IpNeighbor>
+            {
+                new IpNeighbor
+                {
+                    Interface = "ether1",
+                    Identity = "RB260 to Saavedra",
+                    Board = "RB260GS",
+                    Address4 = "10.150.8.47"
+                },
+                new IpNeighbor
+                {
+                    Interface = "ether2",
+                    Identity = "Vieytes 92",
+                    Board = "CCR1072-1G-8S+",
+                    Address4 = "10.0.5.47"
                 }
             };
         }
@@ -178,7 +212,7 @@ namespace Config.Vlan.Unit.Tests
         [Fact]
         public void ExpectedUplinkInterface()
         {
-            var neighList = GetFakeRouterNeighList();
+            var neighList = GetFakeRouterNeighList1();
             _neighReader.Setup(r => r.GetAll()).Returns(neighList.ToArray);
 
             var ifaceList = GetFakeRouterIfacesList();
@@ -216,6 +250,25 @@ namespace Config.Vlan.Unit.Tests
             Assert.Equal("CRF2 VLAN was created", result1);
             Assert.Equal("Both VLANs are already created", result2);
             Assert.Equal("Access Port", result3);
+        }
+
+        [Fact]
+        public void Rb260ShouldBeChecked()
+        {
+            var neighList1 = GetFakeRouterNeighList1();
+            _neighReader.Setup(r => r.GetAll()).Returns(neighList1.ToArray);
+
+            var neighList2 = GetFakeRouterNeighList2();
+            var neighReader2 = new Mock<IEntityReader<IpNeighbor>>();
+            neighReader2.Setup(r => r.GetAll()).Returns(neighList2.ToArray);
+
+            var configVlan = new ConfigVlan(_logger.Object, _connection.Object);
+
+            var result1 = configVlan.CheckFor260("ether1", _neighReader.Object);
+            var result2 = configVlan.CheckFor260("ether1", neighReader2.Object);
+
+            Assert.Equal("No RB260", result1);
+            Assert.Equal("10.150.8.47", result2);
         }
     }
 }

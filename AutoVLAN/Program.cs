@@ -45,6 +45,10 @@ namespace AutoVLAN
             // Set up configuration sources.
             var mycfg = InitialSetup();
 
+            var logFile = new LoggerConfiguration()
+                .WriteTo.File(@"C:\Users\simon\source\repos\AutoVLANrepo\RB260.txt")
+                .CreateLogger();
+
             var connectionCrf = GetMikrotikConnection(mycfg.Host, mycfg.ApiUser, mycfg.ApiPass);
 
             var autoVlanCrf = new ConfigVlan(Log.Logger, connectionCrf);
@@ -70,17 +74,28 @@ namespace AutoVLAN
 
                 var vlanCreation = autoVlanRouter.CreateVlanIfNotExists(router.Value, uplink, vlanReadWriter);
 
+                if (vlanCreation != "Both VLANs are already created")
+                {
+                    //ejecutar metodo para verificar RB260
+                    //loguear la IP obtenida del metodo anterior + la vlan en un archivo de texto
+                }
+
                 connectionRouter.Dispose();
-             }
+            }
 
 
+
+            //Zygma
+            //La IP para inicializar el Shell la saco del json (va a ser el Proxy ARP)
+            //La IP del Zygma va a ser una constante.
+            
             //foreach por cada elemento del diccionario que devolvio GetListRoutersToConfig y cambiar los parametros de la conexion en cada iteración?
             //en cada iteración creo una nueva conexion y la cierro al final
 
             //generar un método que devuelva un listado de RB260 con las VLAN que le corresponden. La aplicación quedaria 
             //esperando confirmación para continuar (obviamente se confirmaría luego de que todos os RB260 esten listos)
 
-            connectionCrf.Dispose();
+            //connectionCrf.Dispose();
         }
     }
 }
