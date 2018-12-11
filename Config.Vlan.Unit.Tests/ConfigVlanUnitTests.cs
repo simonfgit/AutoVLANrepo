@@ -15,7 +15,7 @@ namespace Config.Vlan.Unit.Tests
 
         #region private_fields&consts
 
-        private static List<IpNeighbor> GetFakeProxyNeighList()
+        private static List<IpNeighbor> GetFakeCrfNeighList()
         {
             return new List<IpNeighbor>
             {
@@ -177,11 +177,49 @@ namespace Config.Vlan.Unit.Tests
             return new List<InterfaceVlan>();
         }
 
+        private List<IpAddress> GetFakeCrf2AddressList()
+        {
+            return new List<IpAddress>
+            {
+                new IpAddress
+                {
+                    Address = "10.0.5.81/30",
+                    Interface = "vlan240" 
+                },
+                new IpAddress
+                {
+                    Address = "10.0.9.201/30",
+                    Interface = "vlan300"
+                },
+                new IpAddress
+                {
+                    Address = "10.0.7.17/30",
+                    Interface = "vlan255"
+                },
+                new IpAddress
+                {
+                    Address = "10.150.4.21/30",
+                    Interface = "vlan230"
+                },
+                new IpAddress
+                {
+                    Address = "10.0.6.25/30",
+                    Interface = "ether1"
+                }
+            };
+        }
+        
         private readonly Mock<IEntityReader<IpNeighbor>> _neighReader;
 
         private readonly Mock<ITikConnection> _connection;
 
         private readonly Mock<ILogger> _logger;
+
+        private static readonly Dictionary<string, string> FakeVlanAddressList = new Dictionary<string, string>
+        {
+            {"vlan240", "10.0.5.82/30"},
+            {"vlan255", "10.0.7.18/30"}
+        };
 
         #endregion
 
@@ -197,16 +235,16 @@ namespace Config.Vlan.Unit.Tests
         [Fact]
         public void ExpectedRouterList()
         {
-            var neighList = GetFakeProxyNeighList();
+            var neighList = GetFakeCrfNeighList();
             _neighReader.Setup(r => r.GetAll()).Returns(neighList.ToArray);
 
-            var fakeListRoutersToConfig = GetFakeListRoutersToConfig();
+            var fakeRoutersToConfigList = GetFakeListRoutersToConfig();
 
             var configVlan = new ConfigVlan(_logger.Object, _connection.Object);
 
-            var listRoutersToConfig = configVlan.GetListRoutersToConfig(_neighReader.Object);
+            var routersToConfigList = configVlan.GetListRoutersToConfig(_neighReader.Object);
 
-            Assert.Equal(fakeListRoutersToConfig, listRoutersToConfig);
+            Assert.Equal(fakeRoutersToConfigList, routersToConfigList);
         }
 
         [Fact]
@@ -249,7 +287,7 @@ namespace Config.Vlan.Unit.Tests
 
             Assert.Equal("CRF2 VLAN was created", result1);
             Assert.Equal("Both VLANs are already created", result2);
-            Assert.Equal("Access Port", result3);
+            Assert.Equal("CRF 1 and CRF2 VLANs were created", result3);
         }
 
         [Fact]
@@ -269,6 +307,28 @@ namespace Config.Vlan.Unit.Tests
 
             Assert.Equal("No RB260", result1);
             Assert.Equal("10.150.8.47", result2);
+        }
+
+        [Fact]
+        public void ExpectedVlanAddressList()
+        {
+            var addressList = GetFakeCrf2AddressList();
+            var addressReader = new Mock<IEntityReader<IpAddress>>();
+            addressReader.Setup(r => r.GetAll()).Returns(addressList.ToArray);
+
+            var configVlan = new ConfigVlan(_logger.Object, _connection.Object);
+
+            var vlanAddressList = configVlan.GetVlanAddressList(addressReader.Object);
+
+            Assert.Equal(FakeVlanAddressList, vlanAddressList);
+        }
+
+        [Fact]
+        public void RoutingSetupShouldBeConfigured()
+        {
+            //testear con excepciones?
+            //var addressWriter = new Mock<IEntityWriter<IpAddress>>();
+
         }
     }
 }

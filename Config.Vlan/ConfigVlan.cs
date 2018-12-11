@@ -5,8 +5,13 @@ using Extensions;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using Eternet.Mikrotik.Entities.Interface;
+using Eternet.Mikrotik.Entities.Mpls;
+using Eternet.Mikrotik.Entities.Routing.Ospf;
+using Interface = Eternet.Mikrotik.Entities.Mpls.Ldp.Interface;
+using Interfaces = Eternet.Mikrotik.Entities.Interface.Interfaces;
 
 namespace Config.Vlan
 {
@@ -92,10 +97,8 @@ namespace Config.Vlan
             var vlanCrf2Id = vlanCrf2Name.Remove(0, 4);
             var vlanList = vlanReadWriter.GetAll().ToArray();
 
-            if (!Array.Exists(vlanList, n => n.Name == vlanName)) return "Access Port";
-
             if (Array.Exists(vlanList, n => n.Name == vlanCrf2Name))
-                    return "Both VLANs are already created";
+                return "Both VLANs are already created";
 
             var vlanCrf2 = new InterfaceVlan
             {
@@ -103,6 +106,21 @@ namespace Config.Vlan
                 VlanId = Convert.ToInt32(vlanCrf2Id),
                 Interface = uplink
             };
+
+            if (!Array.Exists(vlanList, n => n.Name == vlanName))
+            {
+                var vlanCrf1 = new InterfaceVlan
+                {
+                    Name = vlanName,
+                    VlanId = Convert.ToInt32(vlanId),
+                    Interface = uplink
+                };
+
+                vlanReadWriter.Save(vlanCrf1);
+                vlanReadWriter.Save(vlanCrf2);
+
+                return "CRF 1 and CRF2 VLANs were created";
+            }
 
             vlanReadWriter.Save(vlanCrf2);
             return "CRF2 VLAN was created";
@@ -127,11 +145,77 @@ namespace Config.Vlan
             return result;
         }
 
-        //public string ZygmaSetUp()
+        public Dictionary<string, string> GetVlanAddressList(IEntityReader<IpAddress> addressReader)
+        {
+            var result = new Dictionary<string, string>();
 
-        //tengo que editar el Shell para que haga exactamente lo que yo quiero. 
-        //el ejemplo lo estoy probando en el proyecto aparte
+            var addressList = addressReader.GetAll().ToArray();
 
-        //hacer un diccionario con puerto del zygma y vlan correspondiente
+            foreach (var address in addressList)
+            {
+                var ip = address.Address.WhitOutNetwork();
+                
+                if (!address.Interface.StartsWith("vlan2") || !ValidIpAddress(ip)) continue;
+
+                var nextIp = ip.GetNextIpAddress(1) + "/30";
+
+                result.Add(address.Interface, nextIp);
+            }
+
+            return result;
+        }
+
+        //Este método hay que partirlo en cinco métodos, uno por cada Writer
+        public void RoutingSetup(string vlan, string ipAddress, IEntityWriter<IpAddress> addressWriter, 
+            IEntityWriter<Eternet.Mikrotik.Entities.Routing.Ospf.Interfaces> ospfIfaceWriter,
+            IEntityWriter<Networks> ospfNetWriter, IEntityWriter<Interface> ldpIfaceWriter, 
+            IEntityWriter<Eternet.Mikrotik.Entities.Mpls.Interface> mplsIfaceWriter)
+        {
+            var address = new IpAddress
+            {
+                Address = ipAddress,
+                Interface = vlan
+            };
+
+            addressWriter.Save(address);
+
+            var ospfIface = new Eternet.Mikrotik.Entities.Routing.Ospf.Interfaces
+            {
+                Interface = vlan,
+                NetworkType = NetworkType.PointToPoint
+            };
+
+            ospfIfaceWriter.Save(ospfIface);
+
+            var network = ipAddress.GetPreviousIpAddress(2) + "/30";
+
+            var ospfNetwork = new Networks
+            {
+                Network = network,
+                Area = "local2"
+            };
+
+            ospfNetWriter.Save(ospfNetwork);
+
+            var ldpIface = new Interface
+            {
+                HelloInterval = "3s",
+                HoldTime = "20s",
+                Name = vlan
+            };
+
+            ldpIfaceWriter.Save(ldpIface);
+
+            var mplsIface = new Eternet.Mikrotik.Entities.Mpls.Interface
+            {
+                Name = vlan,
+                MplsMtu = 1516
+            };
+
+            mplsIfaceWriter.Save(mplsIface);
+        }
+
+        
+        
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Net;
 
 namespace Extensions
@@ -16,6 +17,22 @@ namespace Extensions
         public static string WhitOutNetwork(this string address)
         {
             return address.Split('/').FirstOrDefault();
+        }
+
+        public static string GetNextIpAddress(this string ipAddress, uint increment)
+        {
+            var addressBytes = IPAddress.Parse(ipAddress).GetAddressBytes().Reverse().ToArray();
+            var ipAsUint = BitConverter.ToUInt32(addressBytes, 0);
+            var nextAddress = BitConverter.GetBytes(ipAsUint + increment);
+            return string.Join(".", nextAddress.Reverse());
+        }
+
+        public static string GetPreviousIpAddress(this string ipAddress, uint decrement)
+        {
+            var addressBytes = IPAddress.Parse(ipAddress).GetAddressBytes().Reverse().ToArray();
+            var ipAsUint = BitConverter.ToUInt32(addressBytes, 0);
+            var nextAddress = BitConverter.GetBytes(ipAsUint - decrement);
+            return string.Join(".", nextAddress.Reverse());
         }
     }
 }
