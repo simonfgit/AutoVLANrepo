@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Config.Vlan\Config.Vlan.csproj" />
+    <ProjectReference Include="..\ZygmaTelnet\OltVsolSanity\SwitchZygmaSetup.csproj" />
   </ItemGroup>
 
 </Project>

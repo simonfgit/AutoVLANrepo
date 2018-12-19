@@ -22,47 +22,54 @@ namespace Config.Vlan.Unit.Tests
                 new IpNeighbor
                 {
                     Address4 = "192.168.0.7",
-                    Interface = "vlan70"
+                    Interface = "vlan70",
+                    MacAddress = "00:0C:42:55:66:77"
                 },
                 new IpNeighbor
                 {
                     Address4 = "10.0.5.87",
-                    Interface = "br5"
+                    Interface = "br5",
+                    MacAddress = "00:0C:42:55:66:78"
                 },
                 new IpNeighbor
                 {
                     Address4 = "10.0.8.90",
-                    Interface = "vlan40"
+                    Interface = "vlan40",
+                    MacAddress = "00:0C:4F:15:36:45"
                 },
                 new IpNeighbor
                 {
                     Address4 = "192.168.0.5",
-                    Interface = "ether3"
+                    Interface = "ether3",
+                    MacAddress = "00:0C:42:55:66:79"
                 },
                 new IpNeighbor
                 {
                     Address4 = "",
-                    Interface = "vlan30"
+                    Interface = "vlan30",
+                    MacAddress = "00:0C:42:55:66:81"
                 },
                 new IpNeighbor
                 {
                     Address4 = "",
-                    Interface = "ether7"
+                    Interface = "ether7",
+                    MacAddress = "00:0C:42:55:66:80"
                 },
                 new IpNeighbor
                 {
                     Address4 = "10.0.9.58",
-                    Interface = "vlan78"
+                    Interface = "vlan78",
+                    MacAddress = "00:0C:4F:89:78:45"
                 }
             };
         }
 
-        private static Dictionary<string, string> GetFakeListRoutersToConfig()
+        private static Dictionary<string, (string iface, string mac)> GetFakeListRoutersToConfig()
         {
-            var dic = new Dictionary<string, string>
+            var dic = new Dictionary<string, (string iface, string mac)>
             {
-                {"10.0.8.90", "vlan40"},
-                {"10.0.9.58", "vlan78"}
+                {"10.0.8.90", ("vlan40", "00:0C:4F:15:36:45")},
+                {"10.0.9.58", ("vlan78", "00:0C:4F:89:78:45")}
             };
 
             return dic;

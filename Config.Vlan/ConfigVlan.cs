@@ -52,9 +52,9 @@ namespace Config.Vlan
             _logger = logger;
         }
 
-        public Dictionary<string, string> GetListRoutersToConfig(IEntityReader<IpNeighbor> neighReader)
+        public Dictionary<string, (string iface, string mac)> GetListRoutersToConfig(IEntityReader<IpNeighbor> neighReader)
         {
-            var result = new Dictionary<string, string>();
+            var result = new Dictionary<string, (string iface, string mac)>();
 
             var neighList = neighReader.GetAll().ToArray();
 
@@ -62,7 +62,7 @@ namespace Config.Vlan
             {
                 if (!neigh.Interface.StartsWith("vlan") || !ValidIpAddress(neigh.Address4)) continue;
 
-                result.Add(neigh.Address4, neigh.Interface);
+                result.Add(neigh.Address4, (neigh.Interface, neigh.MacAddress));
                 _logger.Information(neigh.Address4);
             }
 
@@ -166,7 +166,8 @@ namespace Config.Vlan
         }
 
         //Este método hay que partirlo en cinco métodos, uno por cada Writer
-        public void RoutingSetup(string vlan, string ipAddress, IEntityWriter<IpAddress> addressWriter, 
+        public void RoutingSetup(string vlanCrf1, string vlanCrf2, string ipAddress, string vlanStatus,
+            IEntityWriter<IpAddress> addressWriter,
             IEntityWriter<Eternet.Mikrotik.Entities.Routing.Ospf.Interfaces> ospfIfaceWriter,
             IEntityWriter<Networks> ospfNetWriter, IEntityWriter<Interface> ldpIfaceWriter, 
             IEntityWriter<Eternet.Mikrotik.Entities.Mpls.Interface> mplsIfaceWriter)
@@ -174,14 +175,14 @@ namespace Config.Vlan
             var address = new IpAddress
             {
                 Address = ipAddress,
-                Interface = vlan
+                Interface = vlanCrf2
             };
 
             addressWriter.Save(address);
 
             var ospfIface = new Eternet.Mikrotik.Entities.Routing.Ospf.Interfaces
             {
-                Interface = vlan,
+                Interface = vlanCrf2,
                 NetworkType = NetworkType.PointToPoint
             };
 
@@ -201,18 +202,34 @@ namespace Config.Vlan
             {
                 HelloInterval = "3s",
                 HoldTime = "20s",
-                Name = vlan
+                Name = vlanCrf2
             };
 
             ldpIfaceWriter.Save(ldpIface);
 
             var mplsIface = new Eternet.Mikrotik.Entities.Mpls.Interface
             {
-                Name = vlan,
+                Name = vlanCrf2,
                 MplsMtu = 1516
             };
 
             mplsIfaceWriter.Save(mplsIface);
+
+            if (vlanStatus != "CRF 1 and CRF2 VLANs were created") return;
+
+            //devolver el control para confirmar el inicio (así tengo tiempo de prepararme)
+            ospfIface.Interface = vlanCrf1;
+            ospfIfaceWriter.Save(ospfIface);
+
+            ldpIface.Name = vlanCrf1;
+            ldpIfaceWriter.Save(ldpIface);
+
+            mplsIface.Name = vlanCrf1;
+            mplsIfaceWriter.Save(mplsIface);
+
+            //aca viene la edición de la IP por mac telnet
+
+
         }
 
         

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using SwitchZygmaSetup.Ssh;
 
 namespace SwitchZygmaSetup
 {
@@ -143,10 +144,33 @@ namespace SwitchZygmaSetup
 
             }
             return true;
-
-
         }
 
+        public void RunOnNeighbor2(string mac, string identity, string user, string pass, string cmd)
+        {
+            using (var client = new SshClient(_host, _user, _pass))
+            {
+
+                client.Connect();
+                var shellStream = new SshShellStream(client.CreateShellStream("xterm", 80, 600, 0, 0, 32 * 1024), debug: true);
+                var macTelnet = new MacTelnet(shellStream, mac, identity);
+
+                if (!macTelnet.Login(user, pass))
+                    throw new Exception("Can't login");
+
+                var actions = new List<SshShellAction>();
+                const string startActions = "start_actions";
+                const string endActions = "end_actions";
+
+                actions.Add(shellStream.NewAction(startActions, $"{cmd}; :put {endActions};"));
+                actions.Add(shellStream.NewAction(endActions, "/quit"));
+
+                var result = macTelnet.Run($":put {startActions};", actions);
+                if (!result)
+                    throw new Exception("Can't run actions");
+                client.Disconnect();
+            }
+        }
 
     }
 }

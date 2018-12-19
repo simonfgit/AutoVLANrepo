@@ -4,12 +4,17 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Xml.Serialization;
 using Log = Serilog.Log;
 using Config.Vlan;
 using Eternet.Mikrotik.Entities;
 using Eternet.Mikrotik.Entities.Interface;
 using Eternet.Mikrotik.Entities.Ip;
 using Eternet.Mikrotik.Entities.Routing.Ospf;
+using Eternet.Mikrotik.Entities.System;
+using SwitchZygmaSetup;
 using Interface = Eternet.Mikrotik.Entities.Mpls.Ldp.Interface;
 using Interfaces = Eternet.Mikrotik.Entities.Interface.Interfaces;
 
@@ -68,13 +73,16 @@ namespace AutoVLAN
             var vlanAddressList = autoVlanCrf2.GetVlanAddressList(addressReaderCrf2);
 
             var routerOspfList = new List<(string vlan, string host, string status)>();
-
+            
+            //doy de alta la variable para poder utilizarla en la proxima iteración pero en realidad
+            //tendría que ser un parámetro de salida del método
+            var uplink = "";
             //Convertir este loop en un gran método - verificar bien todos los métodos involucrados
             foreach (var router in routerList)
             {
                 var host = router.Key;
 
-                var vlan = router.Value;
+                var vlanCrf1 = router.Value.iface;
 
                 //tirar error de login?
 
@@ -85,11 +93,11 @@ namespace AutoVLAN
                 var neighReaderRouter = connectionRouter.CreateEntityReader<IpNeighbor>();
                 var ifaceReader = connectionRouter.CreateEntityReader<Interfaces>();
 
-                var uplink = autoVlanRouter.GetUpLinkInterface(neighReaderRouter, ifaceReader);
+                uplink = autoVlanRouter.GetUpLinkInterface(neighReaderRouter, ifaceReader);
 
                 var vlanReadWriter = connectionRouter.CreateEntityReadWriter<InterfaceVlan>();
 
-                var vlanCreation = autoVlanRouter.CreateVlanIfNotExists(vlan, uplink, vlanReadWriter);
+                var vlanCreation = autoVlanRouter.CreateVlanIfNotExists(vlanCrf1, uplink, vlanReadWriter);
 
                 if (vlanCreation != "Both VLANs are already created")
                 {
@@ -98,12 +106,12 @@ namespace AutoVLAN
                     if (rb260 != "No RB260")
                     {
                         //logueo en un TXT los RB260 a los que hay que entrar para configurar manualmente
-                        logFile.Information(vlan + " " + host);
+                        logFile.Information(vlanCrf1 + " " + host);
                     }
 
                     //Armo una lista de todos los routers que no tienen ambas VLAN configuradas  
                     //para la proxima iteración
-                    routerOspfList.Add((vlan, host, vlanCreation));
+                    routerOspfList.Add((vlanCrf1, host, vlanCreation));
                 }
 
                 connectionRouter.Dispose();
@@ -111,12 +119,16 @@ namespace AutoVLAN
 
             //la proxima iteración (es decir la que sigue una vez confirmada la configuración de los 
             //rb260, va a trabajar con la lista de host+vlan+status y la lista de IP/30+VLAN del CRF2
+            //para los casos de los puertos Access, la aplicación va a devolver el control entre 
+            //router y router por si algo saliese mal y hubiese que hacer rollback
 
             foreach (var router in routerOspfList)
             {
                 var host = router.host;
 
-                var vlan = router.vlan;
+                var vlanCrf1 = router.vlan;
+
+                var vlanStatus = router.status;
 
                 var connectionRouter = GetMikrotikConnection(host, mycfg.ApiUser, mycfg.ApiPass);
 
@@ -129,28 +141,42 @@ namespace AutoVLAN
                 var autoVlanRouter = new ConfigVlan(Log.Logger, connectionRouter);
 
                 //esto se puede convertir en un método
-                var vlanId = vlan.Remove(0, 4);
+                var vlanId = vlanCrf1.Remove(0, 4);
                 var vlanCrf2 = "vlan2" + vlanId;
                 var address = vlanAddressList[vlanCrf2];
 
                 //este método al ser void no lo puedo testear - meterle excepciones para que sea testeable
-                //viendolo de otra manera, no tiene ninguna lógica para testear...
-                autoVlanRouter.RoutingSetup(vlan, address, addressWriter, ospfIfaceWriter,
+                //viendolo de otra manera, hay un solo If para testear...
+                autoVlanRouter.RoutingSetup(vlanCrf1, vlanCrf2, address, vlanStatus, addressWriter, ospfIfaceWriter,
                     ospfNetWriter, ldpIfaceWriter, mplsIfaceWriter);
+                
+                //aca vendría el cambio en la interface de la IP de Uplink por mac telnet y el setup
+                //del Zygma y luego devuelvo el control para corroborar
 
                 if (router.status == "CRF 1 and CRF2 VLANs were created")
                 {
-                    //tema... cualquier cambio sobre el OSPF me va a dejar sin gestión IP...
-                    //dejar el cambio de la IP para el final, los otros no hacen perder la gestión
-                    //para la interface ospf creo la vlan y luego elimino la ether
+                    var mac = routerList[host].mac;
 
-                    // estos son los puertos access, no olvidarse de configurar el Zygma
+                    var shell = new Shell(mycfg.Host, mycfg.ApiUser, mycfg.ApiPass, Log.Logger);
+
+                    var cmd = "/ip address set [find where interface=" + uplink + "] interface=" + vlanCrf1;
+
+                    var identityReader = connectionRouter.CreateEntityReader<Identity>();
+
+                    //var identity = identityReader.Get(i => i.Name != string.Empty).Name;
+                    var identity = identityReader.GetAll().FirstOrDefault()?.Name;
+
+                    shell.RunOnNeighbor2(mac, identity, mycfg.ApiUser, mycfg.ApiPass, cmd);
+
+                    shell.RunOnNeighbor("192.168.1.1", "admin", "", vlanCrf1);
+
+                    Log.Logger.Information("El cambio de puerto Access a Trunk ha sido realizado, presione Enter para continuar");
+                    Console.ReadLine();
+
+                    //no olvidar de borrar lo que no se usa mas, ya que las interfaces mpls y ospf las
+                    //voy a crear nuevas, no voy a editar las existentes, siempre hablando de los
+                    //puertos access. Quizá convenga hacerlo a mano...
                 }
-
-                //otra posibilidad:
-                //sin importar si ambas vlan estan creadas o no, agregar todos los campos menos la IP
-                //ahora si dependiendo de que vlan esta creada, la IP se agrega o se modifica.
-                //una vez listo esto se borran lo quedo en desuso
 
                 connectionRouter.Dispose();
             }
