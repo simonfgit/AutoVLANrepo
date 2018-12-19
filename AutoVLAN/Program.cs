@@ -194,7 +194,6 @@ namespace AutoVLAN
             //para continuar (obviamente se confirmaría luego de que todos los RB260 esten listos)
 
             connectionCrf.Dispose();
-
         }
     }
 }
