@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -110,28 +111,32 @@ namespace AutoVLAN
                     }
 
                     //Armo una lista de todos los routers que no tienen ambas VLAN configuradas  
-                    //para la proxima iteración
+                    //para la proxima iteración/proximo método
                     routerOspfList.Add((vlanCrf1, host, vlanCreation));
                 }
 
                 connectionRouter.Dispose();
             }
 
-            //la proxima iteración (es decir la que sigue una vez confirmada la configuración de los 
-            //rb260, va a trabajar con la lista de host+vlan+status y la lista de IP/30+VLAN del CRF2
-            //para los casos de los puertos Access, la aplicación va a devolver el control entre 
-            //router y router por si algo saliese mal y hubiese que hacer rollback
+            Process.Start(@"C:\Users\simon\source\repos\AutoVLANrepo\RB260.txt");
 
+            Log.Logger.Information("Presione Enter para confirmar que todos los RB260 han sido configurados");
+            Console.ReadLine();
+            
             foreach (var router in routerOspfList)
             {
                 var host = router.host;
-
                 var vlanCrf1 = router.vlan;
-
                 var vlanStatus = router.status;
-
                 var connectionRouter = GetMikrotikConnection(host, mycfg.ApiUser, mycfg.ApiPass);
 
+                var identityReader = connectionRouter.CreateEntityReader<Identity>();
+
+                //var identity = identityReader.Get(i => i.Name != string.Empty).Name;
+                var identity = identityReader.GetAll().FirstOrDefault()?.Name;
+
+                Log.Logger.Information("Comenzando con el setup de ruteo del equipo " + identity);
+                
                 var addressWriter = connectionRouter.CreateEntityWriter<IpAddress>();
                 var ospfIfaceWriter = connectionRouter.CreateEntityWriter<Eternet.Mikrotik.Entities.Routing.Ospf.Interfaces>();
                 var ospfNetWriter = connectionRouter.CreateEntityWriter<Networks>();
@@ -150,9 +155,6 @@ namespace AutoVLAN
                 autoVlanRouter.RoutingSetup(vlanCrf1, vlanCrf2, address, vlanStatus, addressWriter, ospfIfaceWriter,
                     ospfNetWriter, ldpIfaceWriter, mplsIfaceWriter);
                 
-                //aca vendría el cambio en la interface de la IP de Uplink por mac telnet y el setup
-                //del Zygma y luego devuelvo el control para corroborar
-
                 if (router.status == "CRF 1 and CRF2 VLANs were created")
                 {
                     var mac = routerList[host].mac;
@@ -160,11 +162,6 @@ namespace AutoVLAN
                     var shell = new Shell(mycfg.Host, mycfg.ApiUser, mycfg.ApiPass, Log.Logger);
 
                     var cmd = "/ip address set [find where interface=" + uplink + "] interface=" + vlanCrf1;
-
-                    var identityReader = connectionRouter.CreateEntityReader<Identity>();
-
-                    //var identity = identityReader.Get(i => i.Name != string.Empty).Name;
-                    var identity = identityReader.GetAll().FirstOrDefault()?.Name;
 
                     shell.RunOnNeighbor2(mac, identity, mycfg.ApiUser, mycfg.ApiPass, cmd);
 
@@ -181,8 +178,6 @@ namespace AutoVLAN
                 connectionRouter.Dispose();
             }
 
-
-
             //TENER EN CUENTA EL SET UP DE VPLS EN EL CRF2, QUIZA CONVENGA HACER OTRA APLICACION
 
             //HABLAR CON NACHO RESPECTO DE LOS VPLS EN LOS ROUTERS (TENER EN CUENTA QUE NO SOLO
@@ -198,12 +193,8 @@ namespace AutoVLAN
             //Luego de la primer Iteracion la aplicación quedaria esperando confirmación
             //para continuar (obviamente se confirmaría luego de que todos los RB260 esten listos)
 
+            connectionCrf.Dispose();
 
-
-
-
-
-            //connectionCrf.Dispose();
         }
     }
 }

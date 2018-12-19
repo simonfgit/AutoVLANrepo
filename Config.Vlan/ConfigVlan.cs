@@ -217,7 +217,9 @@ namespace Config.Vlan
 
             if (vlanStatus != "CRF 1 and CRF2 VLANs were created") return;
 
-            //devolver el control para confirmar el inicio (así tengo tiempo de prepararme)
+            _logger.Information("Comienza el cambio de puerto Access a Hybrid, presione Enter para continuar");
+            Console.ReadLine();
+
             ospfIface.Interface = vlanCrf1;
             ospfIfaceWriter.Save(ospfIface);
 
@@ -226,13 +228,6 @@ namespace Config.Vlan
 
             mplsIface.Name = vlanCrf1;
             mplsIfaceWriter.Save(mplsIface);
-
-            //aca viene la edición de la IP por mac telnet
-
-
         }
-
-        
-        
     }
 }
