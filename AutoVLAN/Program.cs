@@ -6,23 +6,31 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Xml.Serialization;
-using Log = Serilog.Log;
 using Config.Vlan;
 using Eternet.Mikrotik.Entities;
 using Eternet.Mikrotik.Entities.Interface;
 using Eternet.Mikrotik.Entities.Ip;
 using Eternet.Mikrotik.Entities.Routing.Ospf;
 using Eternet.Mikrotik.Entities.System;
+using Serilog.Core;
 using SwitchZygmaSetup;
 using Interface = Eternet.Mikrotik.Entities.Mpls.Ldp.Interface;
 using Interfaces = Eternet.Mikrotik.Entities.Interface.Interfaces;
+
+// ReSharper disable IdentifierTypo
+// ReSharper disable CommentTypo
+// ReSharper disable StringLiteralTypo
+
 
 namespace AutoVLAN
 {
     internal class Program
     {
+        private static IConfigurationRoot _configuration;
+        private static Logger _logger;
+        private static Logger _logFile;
+        private static ConfigurationClass _mycfg;
+
         private static ITikConnection GetMikrotikConnection(string host, string user, string pass)
         {
             var connection = ConnectionFactory.CreateConnection(TikConnectionType.Api);
@@ -30,144 +38,115 @@ namespace AutoVLAN
             return connection;
         }
 
-        private static ConfigurationClass InitialSetup()
+        private static void InitialSetup()
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Path.Combine(AppContext.BaseDirectory))
                 .AddJsonFile("appsettings.json", optional: false);
+            _configuration = builder.Build();
 
-            var cfg = builder.Build();
-
-            var mycfg = new ConfigurationClass();
-            cfg.GetSection("ConfigurationClass").Bind(mycfg);
-
-            Log.Logger = new LoggerConfiguration()
+            _logger = new LoggerConfiguration()
                 .WriteTo.Console()
                 .CreateLogger();
 
+            _logFile = new LoggerConfiguration()
+                .WriteTo.File(@"C:\Users\simon\source\repos\AutoVLANrepo\RB260.txt")
+                .CreateLogger();
+        }
+
+        private static ConfigurationClass GetConfiguration()
+        {
+            var mycfg = new ConfigurationClass();
+            _configuration.GetSection("ConfigurationClass").Bind(mycfg);
             return mycfg;
+        }
+
+        //Resolucion de dependencias de clase y metodo a utilizar
+        private static Dictionary<string, string> GetVlanDictionary(string ip)
+        {
+            using (var connectionCrf2 = GetMikrotikConnection(ip, _mycfg.ApiUser, _mycfg.ApiPass))
+            {
+                var autoVlanCrf2 = new ConfigVlan(_logger, connectionCrf2);
+                var addressReaderCrf2 = connectionCrf2.CreateEntityReader<IpAddress>();
+                var vlanAddressList = autoVlanCrf2.GetVlanAddressList(addressReaderCrf2);
+                return vlanAddressList;
+            }
+        }
+
+        //Resolucion de dependencias de clase y metodo a utilizar
+        private static Dictionary<string, (string iface, string mac)> GetNeigsRoutersDictionaryToConfig(string ip)
+        {
+            using (var connectionCrf = GetMikrotikConnection(ip, _mycfg.ApiUser, _mycfg.ApiPass))
+            {
+                var autoVlanCrf = new ConfigVlan(_logger, connectionCrf);
+                var neighReaderCrf = connectionCrf.CreateEntityReader<IpNeighbor>();
+                var routerList = autoVlanCrf.GetListRoutersToConfig(neighReaderCrf);
+                return routerList;
+            }
         }
 
         private static void Main(string[] args)
         {
             if (args == null) throw new ArgumentNullException(nameof(args));
 
+            InitialSetup();
+
             // Set up configuration sources.
-            var mycfg = InitialSetup();
+            _mycfg = GetConfiguration();
 
-            var logFile = new LoggerConfiguration()
-                .WriteTo.File(@"C:\Users\simon\source\repos\AutoVLANrepo\RB260.txt")
-                .CreateLogger();
+            var routerList = GetNeigsRoutersDictionaryToConfig(_mycfg.Host);
+            var vlanAddressList = GetVlanDictionary("CCR2ip");
 
-            //CRF
 
-            var connectionCrf = GetMikrotikConnection(mycfg.Host, mycfg.ApiUser, mycfg.ApiPass);
-            var autoVlanCrf = new ConfigVlan(Log.Logger, connectionCrf);
-            var neighReaderCrf = connectionCrf.CreateEntityReader<IpNeighbor>();
-            var routerList = autoVlanCrf.GetListRoutersToConfig(neighReaderCrf);
-
-            //CRF 2  
-
-            var connectionCrf2 = GetMikrotikConnection("IPCRF2", mycfg.ApiUser, mycfg.ApiPass);
-            var autoVlanCrf2 = new ConfigVlan(Log.Logger, connectionCrf2);
-            var addressReaderCrf2 = connectionCrf2.CreateEntityReader<IpAddress>();
-            var vlanAddressList = autoVlanCrf2.GetVlanAddressList(addressReaderCrf2);
-
-            var routerOspfList = new List<(string vlan, string host, string status)>();
-            
-            //doy de alta la variable para poder utilizarla en la proxima iteración pero en realidad
-            //tendría que ser un parámetro de salida del método
-            var uplink = "";
-            //Convertir este loop en un gran método - verificar bien todos los métodos involucrados
-            foreach (var router in routerList)
-            {
-                var host = router.Key;
-
-                var vlanCrf1 = router.Value.iface;
-
-                //tirar error de login?
-
-                var connectionRouter = GetMikrotikConnection(host, mycfg.ApiUser, mycfg.ApiPass);
-
-                var autoVlanRouter = new ConfigVlan(Log.Logger, connectionRouter);
-
-                var neighReaderRouter = connectionRouter.CreateEntityReader<IpNeighbor>();
-                var ifaceReader = connectionRouter.CreateEntityReader<Interfaces>();
-
-                uplink = autoVlanRouter.GetUpLinkInterface(neighReaderRouter, ifaceReader);
-
-                var vlanReadWriter = connectionRouter.CreateEntityReadWriter<InterfaceVlan>();
-
-                var vlanCreation = autoVlanRouter.CreateVlanIfNotExists(vlanCrf1, uplink, vlanReadWriter);
-
-                if (vlanCreation != "Both VLANs are already created")
-                {
-                    var rb260 = autoVlanRouter.CheckFor260(uplink, neighReaderRouter);
-
-                    if (rb260 != "No RB260")
-                    {
-                        //logueo en un TXT los RB260 a los que hay que entrar para configurar manualmente
-                        logFile.Information(vlanCrf1 + " " + host);
-                    }
-
-                    //Armo una lista de todos los routers que no tienen ambas VLAN configuradas  
-                    //para la proxima iteración/proximo método
-                    routerOspfList.Add((vlanCrf1, host, vlanCreation));
-                }
-
-                connectionRouter.Dispose();
-            }
+            var routerOspfList = GetUpLink(routerList);
 
             Process.Start(@"C:\Users\simon\source\repos\AutoVLANrepo\RB260.txt");
 
-            Log.Logger.Information("Presione Enter para confirmar que todos los RB260 han sido configurados");
+            _logger.Information("Presione Enter para confirmar que todos los RB260 han sido configurados");
             Console.ReadLine();
-            
+
             foreach (var router in routerOspfList)
             {
-                var host = router.host;
-                var vlanCrf1 = router.vlan;
-                var vlanStatus = router.status;
-                var connectionRouter = GetMikrotikConnection(host, mycfg.ApiUser, mycfg.ApiPass);
+                var connectionRouter = GetMikrotikConnection(router.host, _mycfg.ApiUser, _mycfg.ApiPass);
 
                 var identityReader = connectionRouter.CreateEntityReader<Identity>();
 
                 //var identity = identityReader.Get(i => i.Name != string.Empty).Name;
                 var identity = identityReader.GetAll().FirstOrDefault()?.Name;
 
-                Log.Logger.Information("Comenzando con el setup de ruteo del equipo " + identity);
-                
+                _logger.Information("Comenzando con el setup de ruteo del equipo " + identity);
+
                 var addressWriter = connectionRouter.CreateEntityWriter<IpAddress>();
                 var ospfIfaceWriter = connectionRouter.CreateEntityWriter<Eternet.Mikrotik.Entities.Routing.Ospf.Interfaces>();
                 var ospfNetWriter = connectionRouter.CreateEntityWriter<Networks>();
                 var ldpIfaceWriter = connectionRouter.CreateEntityWriter<Interface>();
                 var mplsIfaceWriter = connectionRouter.CreateEntityWriter<Eternet.Mikrotik.Entities.Mpls.Interface>();
 
-                var autoVlanRouter = new ConfigVlan(Log.Logger, connectionRouter);
+                var autoVlanRouter = new ConfigVlan(_logger, connectionRouter);
 
                 //esto se puede convertir en un método
-                var vlanId = vlanCrf1.Remove(0, 4);
+                var vlanId = router.vlan.Replace("vlan","");
                 var vlanCrf2 = "vlan2" + vlanId;
                 var address = vlanAddressList[vlanCrf2];
 
                 //este método al ser void no lo puedo testear - meterle excepciones para que sea testeable
                 //viendolo de otra manera, hay un solo If para testear...
-                autoVlanRouter.RoutingSetup(vlanCrf1, vlanCrf2, address, vlanStatus, addressWriter, ospfIfaceWriter,
+                autoVlanRouter.RoutingSetup(router.vlan, vlanCrf2, address, router.status, addressWriter, ospfIfaceWriter,
                     ospfNetWriter, ldpIfaceWriter, mplsIfaceWriter);
-                
-                if (router.status == "CRF 1 and CRF2 VLANs were created")
+
+                if (router.status == VLanCreatedResult.BothVLanCreated)
                 {
-                    var mac = routerList[host].mac;
+                    var mac = routerList[router.host].mac;
 
-                    var shell = new Shell(mycfg.Host, mycfg.ApiUser, mycfg.ApiPass, Log.Logger);
+                    var shell = new Shell(_mycfg.Host, _mycfg.ApiUser, _mycfg.ApiPass, _logger);
 
-                    var cmd = "/ip address set [find where interface=" + uplink + "] interface=" + vlanCrf1;
+                    var cmd = "/ip address set [find where interface=" + router.uplink + "] interface=" + router.vlan;
 
-                    shell.RunOnNeighbor2(mac, identity, mycfg.ApiUser, mycfg.ApiPass, cmd);
+                    shell.RunOnNeighbor2(mac, identity, _mycfg.ApiUser, _mycfg.ApiPass, cmd);
 
-                    shell.RunOnNeighbor("192.168.1.1", "admin", "", vlanCrf1);
+                    shell.RunOnNeighbor("192.168.1.1", "admin", "", router.vlan);
 
-                    Log.Logger.Information("El cambio de puerto Access a Trunk ha sido realizado, presione Enter para continuar");
+                    _logger.Information("El cambio de puerto Access a Trunk ha sido realizado, presione Enter para continuar");
                     Console.ReadLine();
 
                     //no olvidar de borrar lo que no se usa mas, ya que las interfaces mpls y ospf las
@@ -193,7 +172,45 @@ namespace AutoVLAN
             //Luego de la primer Iteracion la aplicación quedaria esperando confirmación
             //para continuar (obviamente se confirmaría luego de que todos los RB260 esten listos)
 
-            connectionCrf.Dispose();
+
+        }
+
+        private static List<(string vlan, string host, string uplink, VLanCreatedResult status)> GetUpLink(Dictionary<string, (string iface, string mac)> routerList)
+        {
+            var routerOspfList = new List<(string vlan, string host, string uplink, VLanCreatedResult status)>();
+            //doy de alta la variable para poder utilizarla en la proxima iteración pero en realidad
+            //tendría que ser un parámetro de salida del método
+            //Convertir este loop en un gran método - verificar bien todos los métodos involucrados
+            foreach (var router in routerList)
+            {
+                var host = router.Key;
+                var vlanCrf1 = router.Value.iface;
+                var routerToSetup = GetMikrotikConnection(host, _mycfg.ApiUser, _mycfg.ApiPass);
+                var autoVlanRouter = new ConfigVlan(_logger, routerToSetup);
+
+                var neighReaderRouter = routerToSetup.CreateEntityReader<IpNeighbor>();
+                var ifaceReader = routerToSetup.CreateEntityReader<Interfaces>();
+
+                var uplink = autoVlanRouter.GetUpLinkInterface(neighReaderRouter, ifaceReader);
+                var vlanReadWriter = routerToSetup.CreateEntityReadWriter<InterfaceVlan>();
+
+                var vlanCreation = autoVlanRouter.CreateVlanIfNotExists(vlanCrf1, uplink, vlanReadWriter);
+                if (vlanCreation != VLanCreatedResult.BothVLanCreated)
+                {
+                    var rb260 = autoVlanRouter.CheckFor260(uplink, neighReaderRouter);
+
+                    if (rb260 != "No RB260")
+                    {
+                        //logueo en un TXT los RB260 a los que hay que entrar para configurar manualmente
+                        _logFile.Information(vlanCrf1 + " " + host);
+                    }
+                    //Armo una lista de todos los routers que no tienen ambas VLAN configuradas  
+                    //para la proxima iteración/proximo método
+                    routerOspfList.Add((vlanCrf1, host, uplink, vlanCreation));
+                }
+                routerToSetup.Dispose();
+            }
+            return routerOspfList;
         }
     }
 }

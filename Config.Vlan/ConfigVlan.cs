@@ -15,6 +15,14 @@ using Interfaces = Eternet.Mikrotik.Entities.Interface.Interfaces;
 
 namespace Config.Vlan
 {
+
+    public enum VLanCreatedResult
+    {
+        BothVLanExists,
+        BothVLanCreated,
+        VLanToCcr2Created
+    }
+
     public class ConfigVlan
     {
         #region private_fields&consts
@@ -90,7 +98,7 @@ namespace Config.Vlan
             return result;
         }
 
-        public string CreateVlanIfNotExists(string vlanName, string uplink, IEntityReadWriter<InterfaceVlan> vlanReadWriter)
+        public VLanCreatedResult CreateVlanIfNotExists(string vlanName, string uplink, IEntityReadWriter<InterfaceVlan> vlanReadWriter)
         {
             var vlanId = vlanName.Remove(0, 4);
             var vlanCrf2Name = "vlan2" + vlanId;
@@ -98,7 +106,7 @@ namespace Config.Vlan
             var vlanList = vlanReadWriter.GetAll().ToArray();
 
             if (Array.Exists(vlanList, n => n.Name == vlanCrf2Name))
-                return "Both VLANs are already created";
+                return VLanCreatedResult.BothVLanExists;
 
             var vlanCrf2 = new InterfaceVlan
             {
@@ -119,11 +127,11 @@ namespace Config.Vlan
                 vlanReadWriter.Save(vlanCrf1);
                 vlanReadWriter.Save(vlanCrf2);
 
-                return "CRF 1 and CRF2 VLANs were created";
+                return VLanCreatedResult.BothVLanCreated;
             }
 
             vlanReadWriter.Save(vlanCrf2);
-            return "CRF2 VLAN was created";
+            return VLanCreatedResult.VLanToCcr2Created;
             
             //arrojar excepciones (equipo apagado por ejemplo) o bien hacer un try que devuelva un boolean
         }
@@ -166,7 +174,7 @@ namespace Config.Vlan
         }
 
         //Este método hay que partirlo en cinco métodos, uno por cada Writer
-        public void RoutingSetup(string vlanCrf1, string vlanCrf2, string ipAddress, string vlanStatus,
+        public void RoutingSetup(string vlanCrf1, string vlanCrf2, string ipAddress, VLanCreatedResult vlanStatus,
             IEntityWriter<IpAddress> addressWriter,
             IEntityWriter<Eternet.Mikrotik.Entities.Routing.Ospf.Interfaces> ospfIfaceWriter,
             IEntityWriter<Networks> ospfNetWriter, IEntityWriter<Interface> ldpIfaceWriter, 
@@ -215,7 +223,7 @@ namespace Config.Vlan
 
             mplsIfaceWriter.Save(mplsIface);
 
-            if (vlanStatus != "CRF 1 and CRF2 VLANs were created") return;
+            if (vlanStatus != VLanCreatedResult.BothVLanCreated) return;
 
             _logger.Information("Comienza el cambio de puerto Access a Hybrid, presione Enter para continuar");
             Console.ReadLine();
