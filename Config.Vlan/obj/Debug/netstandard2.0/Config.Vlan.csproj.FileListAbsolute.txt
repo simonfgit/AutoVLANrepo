@@ -22,3 +22,15 @@ C:\Users\simon\source\repos\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Co
 C:\Users\simon\source\repos\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.csproj.CopyComplete
 C:\Users\simon\source\repos\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.dll
 C:\Users\simon\source\repos\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.pdb
+C:\Fuentes\AutoVLANrepo\Config.Vlan\bin\Debug\netstandard2.0\Config.Vlan.deps.json
+C:\Fuentes\AutoVLANrepo\Config.Vlan\bin\Debug\netstandard2.0\Config.Vlan.dll
+C:\Fuentes\AutoVLANrepo\Config.Vlan\bin\Debug\netstandard2.0\Config.Vlan.pdb
+C:\Fuentes\AutoVLANrepo\Config.Vlan\bin\Debug\netstandard2.0\Extensions.dll
+C:\Fuentes\AutoVLANrepo\Config.Vlan\bin\Debug\netstandard2.0\Extensions.pdb
+C:\Fuentes\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.csprojAssemblyReference.cache
+C:\Fuentes\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.csproj.CoreCompileInputs.cache
+C:\Fuentes\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.AssemblyInfoInputs.cache
+C:\Fuentes\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.AssemblyInfo.cs
+C:\Fuentes\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.csproj.CopyComplete
+C:\Fuentes\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.dll
+C:\Fuentes\AutoVLANrepo\Config.Vlan\obj\Debug\netstandard2.0\Config.Vlan.pdb
