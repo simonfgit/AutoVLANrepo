@@ -100,9 +100,9 @@ namespace Config.Vlan
 
         public VLanCreatedResult CreateVlanIfNotExists(string vlanName, string uplink, IEntityReadWriter<InterfaceVlan> vlanReadWriter)
         {
-            var vlanId = vlanName.Remove(0, 4);
+            var vlanId = vlanName.Replace("vlan", "");
             var vlanCrf2Name = "vlan2" + vlanId;
-            var vlanCrf2Id = vlanCrf2Name.Remove(0, 4);
+            var vlanCrf2Id = vlanCrf2Name.Replace("vlan", "");
             var vlanList = vlanReadWriter.GetAll().ToArray();
 
             if (Array.Exists(vlanList, n => n.Name == vlanCrf2Name))

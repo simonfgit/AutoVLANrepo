@@ -292,9 +292,9 @@ namespace Config.Vlan.Unit.Tests
             var result2 = configVlan.CreateVlanIfNotExists("vlan56", "ether1", vlanReadWriter2.Object);
             var result3 = configVlan.CreateVlanIfNotExists("vlan56", "ether1", vlanReadWriter3.Object);
 
-            Assert.Equal("CRF2 VLAN was created", result1);
-            Assert.Equal("Both VLANs are already created", result2);
-            Assert.Equal("CRF 1 and CRF2 VLANs were created", result3);
+            Assert.Equal(VLanCreatedResult.VLanToCcr2Created, result1);
+            Assert.Equal(VLanCreatedResult.BothVLanExists, result2);
+            Assert.Equal(VLanCreatedResult.BothVLanCreated, result3);
         }
 
         [Fact]
