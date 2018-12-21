@@ -213,6 +213,4 @@ namespace AutoVLAN
             return routerOspfList;
         }
     }
-
-    //prueba
 }
