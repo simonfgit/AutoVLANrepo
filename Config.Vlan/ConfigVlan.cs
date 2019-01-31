@@ -22,7 +22,7 @@ namespace Config.Vlan
         BothVLanCreated,
         VLanToCcr2Created
     }
-
+    
     public class ConfigVlan
     {
         #region private_fields&consts

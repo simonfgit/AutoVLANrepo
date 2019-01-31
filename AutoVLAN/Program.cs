@@ -98,13 +98,71 @@ namespace AutoVLAN
             var vlanAddressList = GetVlanDictionary("CCR2ip");
 
 
-            var routerOspfList = GetUpLink(routerList);
+            var routerOspfList = GetRoutersOspfList(routerList);
 
             Process.Start(@"C:\Users\simon\source\repos\AutoVLANrepo\RB260.txt");
 
             _logger.Information("Presione Enter para confirmar que todos los RB260 han sido configurados");
             Console.ReadLine();
 
+            //void??
+            ConfigRouterOspf(routerOspfList, vlanAddressList, routerList);
+
+            //TENER EN CUENTA EL SET UP DE VPLS EN EL CRF2, QUIZA CONVENGA HACER OTRA APLICACION
+
+            //HABLAR CON NACHO RESPECTO DE LOS VPLS EN LOS ROUTERS (TENER EN CUENTA QUE NO SOLO
+            //HAY VPLS EN LOS PRIMEROS SALTOS - EN UN CLASICO AP SE METE EN EL BRIDGE LA WLAN
+            //Y EL VPLS, PARA QUE ANDE AUTOMATICAMENTE EL CRF2 TENDRIAN QUE ESTAR LOS DOS VPLS
+            //EN EL MISMO BRIDGE JUNTO CON LA WLAN
+
+
+            //Zygma
+            //La IP para inicializar el Shell la saco del json (va a ser el Proxy ARP)
+            //La IP del Zygma va a ser una constante.
+
+            //Luego de la primer Iteracion la aplicación quedaria esperando confirmación
+            //para continuar (obviamente se confirmaría luego de que todos los RB260 esten listos)
+
+
+        }
+
+        private static List<(string vlan, string host, string uplink, VLanCreatedResult status)> GetRoutersOspfList(Dictionary<string, (string iface, string mac)> routerList)
+        {
+            var routerOspfList = new List<(string vlan, string host, string uplink, VLanCreatedResult status)>();
+            //Convertir este loop en un gran método - verificar bien todos los métodos involucrados
+            foreach (var router in routerList)
+            {
+                var host = router.Key;
+                var vlanCrf1 = router.Value.iface;
+                var routerToSetup = GetMikrotikConnection(host, _mycfg.ApiUser, _mycfg.ApiPass);
+                var autoVlanRouter = new ConfigVlan(_logger, routerToSetup);
+
+                var neighReaderRouter = routerToSetup.CreateEntityReader<IpNeighbor>();
+                var ifaceReader = routerToSetup.CreateEntityReader<Interfaces>();
+
+                var uplink = autoVlanRouter.GetUpLinkInterface(neighReaderRouter, ifaceReader);
+                var vlanReadWriter = routerToSetup.CreateEntityReadWriter<InterfaceVlan>();
+
+                var vlanCreation = autoVlanRouter.CreateVlanIfNotExists(vlanCrf1, uplink, vlanReadWriter);
+                if (vlanCreation != VLanCreatedResult.BothVLanCreated)
+                {
+                    var rb260 = autoVlanRouter.CheckFor260(uplink, neighReaderRouter);
+
+                    if (rb260 != "No RB260")
+                    {
+                        //logueo en un TXT los RB260 a los que hay que entrar para configurar manualmente
+                        _logFile.Information(vlanCrf1 + " " + rb260);
+                    }
+                    //Armo una lista de todos los routers que no tienen ambas VLAN configuradas  
+                    routerOspfList.Add((vlanCrf1, host, uplink, vlanCreation));
+                }
+                routerToSetup.Dispose();
+            }
+            return routerOspfList;
+        }
+
+        private static void ConfigRouterOspf(List<(string vlan, string host, string uplink, VLanCreatedResult status)> routerOspfList, Dictionary<string,string> vlanAddressList, Dictionary<string, (string iface, string mac)> routerList)
+        {
             foreach (var router in routerOspfList)
             {
                 var connectionRouter = GetMikrotikConnection(router.host, _mycfg.ApiUser, _mycfg.ApiPass);
@@ -125,7 +183,7 @@ namespace AutoVLAN
                 var autoVlanRouter = new ConfigVlan(_logger, connectionRouter);
 
                 //esto se puede convertir en un método
-                var vlanId = router.vlan.Replace("vlan","");
+                var vlanId = router.vlan.Replace("vlan", "");
                 var vlanCrf2 = "vlan2" + vlanId;
                 var address = vlanAddressList[vlanCrf2];
 
@@ -156,61 +214,6 @@ namespace AutoVLAN
 
                 connectionRouter.Dispose();
             }
-
-            //TENER EN CUENTA EL SET UP DE VPLS EN EL CRF2, QUIZA CONVENGA HACER OTRA APLICACION
-
-            //HABLAR CON NACHO RESPECTO DE LOS VPLS EN LOS ROUTERS (TENER EN CUENTA QUE NO SOLO
-            //HAY VPLS EN LOS PRIMEROS SALTOS - EN UN CLASICO AP SE METE EN EL BRIDGE LA WLAN
-            //Y EL VPLS, PARA QUE ANDE AUTOMATICAMENTE EL CRF2 TENDRIAN QUE ESTAR LOS DOS VPLS
-            //EN EL MISMO BRIDGE JUNTO CON LA WLAN
-
-
-            //Zygma
-            //La IP para inicializar el Shell la saco del json (va a ser el Proxy ARP)
-            //La IP del Zygma va a ser una constante.
-
-            //Luego de la primer Iteracion la aplicación quedaria esperando confirmación
-            //para continuar (obviamente se confirmaría luego de que todos los RB260 esten listos)
-
-
-        }
-
-        private static List<(string vlan, string host, string uplink, VLanCreatedResult status)> GetUpLink(Dictionary<string, (string iface, string mac)> routerList)
-        {
-            var routerOspfList = new List<(string vlan, string host, string uplink, VLanCreatedResult status)>();
-            //doy de alta la variable para poder utilizarla en la proxima iteración pero en realidad
-            //tendría que ser un parámetro de salida del método
-            //Convertir este loop en un gran método - verificar bien todos los métodos involucrados
-            foreach (var router in routerList)
-            {
-                var host = router.Key;
-                var vlanCrf1 = router.Value.iface;
-                var routerToSetup = GetMikrotikConnection(host, _mycfg.ApiUser, _mycfg.ApiPass);
-                var autoVlanRouter = new ConfigVlan(_logger, routerToSetup);
-
-                var neighReaderRouter = routerToSetup.CreateEntityReader<IpNeighbor>();
-                var ifaceReader = routerToSetup.CreateEntityReader<Interfaces>();
-
-                var uplink = autoVlanRouter.GetUpLinkInterface(neighReaderRouter, ifaceReader);
-                var vlanReadWriter = routerToSetup.CreateEntityReadWriter<InterfaceVlan>();
-
-                var vlanCreation = autoVlanRouter.CreateVlanIfNotExists(vlanCrf1, uplink, vlanReadWriter);
-                if (vlanCreation != VLanCreatedResult.BothVLanCreated)
-                {
-                    var rb260 = autoVlanRouter.CheckFor260(uplink, neighReaderRouter);
-
-                    if (rb260 != "No RB260")
-                    {
-                        //logueo en un TXT los RB260 a los que hay que entrar para configurar manualmente
-                        _logFile.Information(vlanCrf1 + " " + host);
-                    }
-                    //Armo una lista de todos los routers que no tienen ambas VLAN configuradas  
-                    //para la proxima iteración/proximo método
-                    routerOspfList.Add((vlanCrf1, host, uplink, vlanCreation));
-                }
-                routerToSetup.Dispose();
-            }
-            return routerOspfList;
         }
     }
 }
